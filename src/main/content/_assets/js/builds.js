@@ -19,6 +19,7 @@ var runtime_development_builds = [];
 var runtime_betas = [];
 var developer_tools_releases = [];
 var developer_tools_development_builds = [];
+var versArr = [];
 
 var builds_url = '/api/builds/data';
 var starter_domain = 
@@ -71,10 +72,6 @@ var allowed_builds = {
     },
     // runtime_nightly_builds not intended for used, here for completeness
     runtime_nightly_builds: undefined,
-    // tools_releases not intended for used, here for completeness
-    tools_releases: undefined,
-    // tools_nightly_builds not intended for used, here for completeness
-    tools_nightly_builds: undefined, // based on "driver_location" /api/builds/data
 };
 
 var site_lang = document.getElementsByTagName('html')[0].getAttribute('lang');
@@ -157,6 +154,8 @@ function render_builds(builds, parent) {
     var analytics_class_name = 'link_' + tableID;
     var download_arrow =
         '<div class="download_arrow"><div class="table_arrow"></div><div class="table_line"></div></div>';
+    var newest = 0;
+    var subRelease = 0;
 
     // update maven and gradle commands to use latest version
     if (parent.parent().data('builds-id') == 'runtime_releases') {
@@ -167,6 +166,13 @@ function render_builds(builds, parent) {
         if (re.test(latest_version)) {
             $('.latest_version').html(latest_version);
         }
+
+        // get the newest release version
+        // used to only add builds from the last two years to the runtime release table
+        versArr = JSON.parse(JSON.stringify(builds));
+        sort_builds(versArr, "version", true);
+        newest = parseInt(versArr[0].version.split(".")[0]);
+        subRelease = parseInt(versArr[0].version.split(".")[3]);
     }
 
     // get the max number of package locations to determine number of rows
@@ -178,17 +184,6 @@ function render_builds(builds, parent) {
             }
         }
     });
-
-    // get the newest release version
-    // used to only add builds from the last two years to the runtime release table
-    var versArr = builds.map(function(b){
-        if (parent.parent().data('builds-id') == 'runtime_releases')
-        {
-            return parseInt(b.version.split(".")[0]);
-        }
-    })
-    var newest = Math.max.apply(Math, versArr);
-    var subRelease = (new Date()).getMonth() + 1;
 
     builds.forEach(function (build) {
         if (parent.hasClass('release_table_body')) {
@@ -461,32 +456,6 @@ function render_builds(builds, parent) {
                     }
                 }
             }
-
-            // eclipse developer tools releases only
-            else {
-                var row = $('<tr></tr>');
-                var version_column = $(
-                    '<td headers="' +
-                        tableID +
-                        '_version">' +
-                        build.version +
-                        '</td>'
-                );
-                var download_column = $(
-                    '<td headers="' +
-                        tableID +
-                        '_download"><a href="' +
-                        build.driver_location +
-                        '" class="' +
-                        analytics_class_name +
-                        '" rel="noopener">' +
-                        download_arrow +
-                        'ZIP</a></td>'
-                );
-                row.append(version_column);
-                row.append(download_column);
-                parent.append(row);
-            }
         }
 
         // ol development builds and eclipse development builds
@@ -679,13 +648,38 @@ function sortBetaLocations(package_locations_param) {
 
 
 function sort_builds(builds, key, descending) {
-    builds.sort(function (a, b) {
-        if (descending) {
-            return a[key] < b[key] ? 1 : -1;
-        } else {
-            return a[key] > b[key] ? 1 : -1;
-        }
-    });
+    if(key === "version"){
+        // split version numbers by periods, loop through the resulting arrays to compare
+        builds.sort(function (a,b){
+            var aVers = (a[key].split(".")).map(Number);
+            var bVers = (b[key].split(".")).map(Number);
+            for(var i = 0; i < aVers.length; i++){
+                if(aVers[i] < bVers[i]){
+                    if(descending){
+                        return 1;
+                    }
+                    return -1;
+                }
+                if(aVers[i] > bVers[i]){
+                    if(descending){
+                        return -1;
+                    }
+                    return 1;
+                }
+                if(i === aVers.length - 1){
+                    return 0;
+                }
+            }
+        })
+    } else {
+        builds.sort(function (a, b) {
+            if (descending) {
+                return a[key] < b[key] ? 1 : -1;
+            } else {
+                return a[key] > b[key] ? 1 : -1;
+            }
+        });
+    }
 }
 
 function get_starter_info() {
@@ -1205,19 +1199,6 @@ $(document).ready(function () {
                     );
                 }
             }
-            if (latest_releases.tools) {
-                if (latest_releases.tools.version) {
-                    $(
-                        '#eclipse_developer_tools_download_link_version_text'
-                    ).text(latest_releases.tools.version);
-                }
-                if (latest_releases.tools.driver_location) {
-                    $('#eclipse_developer_tools_download_link').attr(
-                        'href',
-                        latest_releases.tools.driver_location
-                    );
-                }
-            }
         }
 
         function formatBuilds(builds_from_response) {
@@ -1239,20 +1220,10 @@ $(document).ready(function () {
             if (data.builds.runtime_releases) {
                 runtime_releases = formatBuilds(data.builds.runtime_releases);
                 builds['runtime_releases'] = runtime_releases;
+                sort_builds(runtime_releases, "version", true);
                 render_builds(
                     runtime_releases,
                     $('table[data-builds-id="runtime_releases"] tbody')
-                );
-            }
-            if (data.builds.tools_releases) {
-                developer_tools_releases = formatBuilds(
-                    data.builds.tools_releases
-                );
-                builds['developer_tools_releases'] = developer_tools_releases;
-                sort_builds(developer_tools_releases, 'date', true);
-                render_builds(
-                    developer_tools_releases,
-                    $('table[data-builds-id="developer_tools_releases"] tbody')
                 );
             }
             if (data.builds.runtime_betas) {
@@ -1281,20 +1252,6 @@ $(document).ready(function () {
                     runtime_development_builds,
                     $(
                         'table[data-builds-id="runtime_development_builds"] tbody'
-                    )
-                );
-            }
-            if (data.builds.tools_nightly_builds) {
-                developer_tools_development_builds = formatBuilds(
-                    data.builds.tools_nightly_builds
-                );
-                builds['developer_tools_development_builds'] =
-                    developer_tools_development_builds;
-                sort_builds(developer_tools_development_builds, 'date', true);
-                render_builds(
-                    developer_tools_development_builds,
-                    $(
-                        'table[data-builds-id="developer_tools_development_builds"] tbody'
                     )
                 );
             }

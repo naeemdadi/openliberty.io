@@ -17,7 +17,7 @@ $.getJSON( "../../../../blog_tags.json", function(data) {
     var tags_html = "";
     $.each(data.blog_tags, function(j, tag) {
         if (tag.posts.indexOf(post_name) > -1) {
-            tags_html = '<a href="/blog/?search=' + tag.name.replace(" ", "_") + '" class="post_tag">' + tag.name + '</a>' + '<span>, </span>';
+            tags_html = '<a href="/blog/?search=' + tag.name.replace(" ", "_") + '" class="post_tag blue_link_light_background">' + tag.name + '</a>' + '<span>, </span>';
             $(".post_tags_container").append(tags_html);
         }
     });
@@ -35,7 +35,7 @@ function getFilename(uri) {
 }
 
 function removeFileExtension(filename) {
-    return filename.split('.')[0];
+    return filename.substring(0, filename.lastIndexOf('.')) || filename
 }
 
 var code_blocks_with_copy_to_clipboard = 'pre:not(.no_copy pre)'; // CSS Selector

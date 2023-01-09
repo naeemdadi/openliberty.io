@@ -3,6 +3,11 @@ var blog = function(){
 
     // Read tags from json file and add tag to class
     function getTags(callback) {
+        if(document.documentElement.lang !== 'en') {
+            // Temporarily disable tags for non-English posts until there is a design in place on how the
+            // code should manage tags for a post in different languages.
+            return;
+        }
         $.getJSON( "../../blog_tags.json", function(data) {
             $.each(data.blog_tags, function(j, tag) {
                 var tag_class = tag.name.replace(" ", "_");
@@ -44,7 +49,7 @@ var blog = function(){
     }
 
     function removeFileExtension(filename) {
-        return filename.split('.')[0];
+        return filename.substring(0, filename.lastIndexOf('.')) || filename
     }
 
     function updateSearchUrl(tag) {
